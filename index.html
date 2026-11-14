@@ -15,6 +15,7 @@
             --code-bg: #000000;
             --code-text: #4af626;
             --accent: #2481cc;
+            --nav-height: 60px;
         }
         
         [data-theme="light"] {
@@ -45,16 +46,19 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             height: 100vh;
+            height: 100dvh; /* Фикс для мобильных браузеров */
             display: flex;
             flex-direction: column;
             overflow: hidden;
             transition: background 0.3s;
         }
 
+        /* Зона контента (над меню) */
         #main-content {
             flex: 1;
-            overflow: hidden;
             position: relative;
+            overflow: hidden;
+            margin-bottom: var(--nav-height); /* Отступ снизу под меню */
         }
 
         .tab-content {
@@ -85,7 +89,7 @@
         .user-msg { background: var(--msg-user); align-self: flex-end; border-bottom-right-radius: 2px; }
         .ai-msg { background: var(--msg-ai); align-self: flex-start; border-bottom-left-radius: 2px; }
         
-        .input-area { display: flex; gap: 8px; }
+        .input-area { display: flex; gap: 8px; padding-bottom: 5px; }
         input {
             flex: 1;
             padding: 12px;
@@ -94,6 +98,7 @@
             background: var(--nav-bg);
             color: var(--text-color);
             outline: none;
+            font-size: 15px;
         }
         .send-btn {
             background: var(--accent);
@@ -104,6 +109,9 @@
             border-radius: 50%;
             font-size: 18px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* --- КОД --- */
@@ -120,6 +128,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             margin-bottom: 10px;
+            border: 1px solid rgba(128,128,128,0.2);
         }
         .copy-btn {
             background: var(--accent);
@@ -138,6 +147,7 @@
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 15px;
+            border: 1px solid rgba(128,128,128,0.1);
         }
         .setting-title { font-weight: bold; margin-bottom: 10px; font-size: 15px;}
         .theme-btns { display: flex; gap: 10px; }
@@ -150,8 +160,8 @@
             font-weight: bold;
             cursor: pointer;
         }
-        .t-dark { background: #17212b; }
-        .t-light { background: #e0e0e0; color: #000; }
+        .t-dark { background: #17212b; border: 1px solid #333; }
+        .t-light { background: #e0e0e0; color: #000; border: 1px solid #ccc; }
         .t-orange { background: #d35400; }
         
         .chat-list-item {
@@ -159,26 +169,34 @@
             border-bottom: 1px solid rgba(128,128,128,0.2);
             font-size: 14px;
         }
+        .chat-list-item:last-child { border-bottom: none; }
 
-        /* --- НИЖНЕЕ МЕНЮ --- */
+        /* --- НИЖНЕЕ МЕНЮ (ЖЕСТКО ПРИБИТО) --- */
         #bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--nav-height);
             display: flex;
             background: var(--nav-bg);
             border-top: 1px solid rgba(128, 128, 128, 0.2);
-            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom); /* Для iPhone с вырезом */
         }
         .nav-btn {
             flex: 1;
             background: none;
             border: none;
-            padding: 12px 0;
             color: #8e9297;
             font-size: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 4px;
             cursor: pointer;
+            padding: 5px;
         }
         .nav-btn.active { color: var(--accent); }
         .nav-btn .icon { font-size: 20px; }
@@ -242,39 +260,35 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand(); // Разворачиваем на весь экран
+        tg.expand();
 
-        const SYSTEM_PROMPT = `Ты профессиональный программист. Пиши чистый код без лишних пояснений, если не просят. Если пишешь код, оборачивай его в блоки \`\`\`язык ... \`\`\`.`;
+        const SYSTEM_PROMPT = `Ты профессиональный программист. Пиши чистый код без лишних пояснений. Если пишешь код, оборачивай его в блоки \`\`\`язык ... \`\`\`.`;
 
-        // --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             
             document.getElementById('tab-' + tabName).classList.add('active');
             document.querySelector(`.nav-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
         }
 
-        // --- СМЕНА ТЕМЫ ---
         function setTheme(theme) {
             document.body.setAttribute('data-theme', theme);
-            tg.HapticFeedback.impactOccurred('light');
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
         }
 
-        // --- ОТПРАВКА СООБЩЕНИЯ ---
         async function sendMessage() {
             const input = document.getElementById('prompt-input');
             const text = input.value.trim();
             if (!text) return;
 
             const chat = document.getElementById('chat-history');
-            
-            // Добавляем сообщение юзера
             chat.innerHTML += `<div class="message user-msg">${text}</div>`;
             input.value = '';
             chat.scrollTop = chat.scrollHeight;
 
-            // Заглушка загрузки
             const loadingId = 'load-' + Date.now();
             chat.innerHTML += `<div class="message ai-msg" id="${loadingId}">Печатает...</div>`;
             chat.scrollTop = chat.scrollHeight;
@@ -295,12 +309,10 @@
                 const data = await response.json();
                 let reply = data.choices[0].message.content;
 
-                // Выводим ответ в чат
                 const loadingMsg = document.getElementById(loadingId);
                 loadingMsg.innerHTML = reply.replace(/\n/g, '<br>');
                 chat.scrollTop = chat.scrollHeight;
 
-                // Пытаемся вытащить код и закинуть во вкладку "Код"
                 extractAndSaveCode(reply);
 
             } catch (error) {
@@ -308,19 +320,14 @@
             }
         }
 
-        // --- ИЗВЛЕЧЕНИЕ КОДА ---
         function extractAndSaveCode(text) {
-            // Ищем текст между ``` и ```
             const codeRegex = /```[a-zA-Z]*\n([\s\S]*?)```/g;
             let match = codeRegex.exec(text);
-            
             let codeToSave = "";
             
             if (match && match[1]) {
-                // Если нашли блок с кодом
                 codeToSave = match[1];
             } else {
-                // Если блоков нет, но ответ выглядит как код (много скобок и слов типа local/function/var)
                 if (text.includes('local ') || text.includes('function ') || text.includes('const ')) {
                     codeToSave = text;
                 }
@@ -328,23 +335,20 @@
 
             if (codeToSave) {
                 document.getElementById('latest-code').innerText = codeToSave.trim();
-                // Даем легкий виброотклик, что код обновился
-                tg.HapticFeedback.notificationOccurred('success');
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             }
         }
 
-        // --- КОПИРОВАНИЕ ---
         function copyCode() {
             const code = document.getElementById('latest-code').innerText;
             if (!code || code.includes("Тут появится")) return;
             
             navigator.clipboard.writeText(code).then(() => {
                 tg.showAlert("Код скопирован!");
-                tg.HapticFeedback.notificationOccurred('success');
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             });
         }
 
-        // Отправка по Enter
         document.getElementById('prompt-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendMessage();
         });
