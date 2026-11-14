@@ -46,19 +46,18 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             height: 100vh;
-            height: 100dvh; /* Фикс для мобильных браузеров */
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             transition: background 0.3s;
         }
 
-        /* Зона контента (над меню) */
         #main-content {
             flex: 1;
             position: relative;
             overflow: hidden;
-            margin-bottom: var(--nav-height); /* Отступ снизу под меню */
+            margin-bottom: var(--nav-height);
         }
 
         .tab-content {
@@ -69,7 +68,6 @@
         }
         .tab-content.active { display: flex; }
 
-        /* --- ЧАТ --- */
         #chat-history {
             flex: 1;
             overflow-y: auto;
@@ -114,7 +112,6 @@
             justify-content: center;
         }
 
-        /* --- КОД --- */
         #code-view { display: flex; flex-direction: column; height: 100%; }
         #latest-code {
             flex: 1;
@@ -141,7 +138,6 @@
             cursor: pointer;
         }
 
-        /* --- НАСТРОЙКИ --- */
         .setting-group {
             background: var(--msg-ai);
             padding: 15px;
@@ -163,15 +159,7 @@
         .t-dark { background: #17212b; border: 1px solid #333; }
         .t-light { background: #e0e0e0; color: #000; border: 1px solid #ccc; }
         .t-orange { background: #d35400; }
-        
-        .chat-list-item {
-            padding: 10px;
-            border-bottom: 1px solid rgba(128,128,128,0.2);
-            font-size: 14px;
-        }
-        .chat-list-item:last-child { border-bottom: none; }
 
-        /* --- НИЖНЕЕ МЕНЮ (ЖЕСТКО ПРИБИТО) --- */
         #bottom-nav {
             position: fixed;
             bottom: 0;
@@ -182,7 +170,7 @@
             background: var(--nav-bg);
             border-top: 1px solid rgba(128, 128, 128, 0.2);
             z-index: 1000;
-            padding-bottom: env(safe-area-inset-bottom); /* Для iPhone с вырезом */
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .nav-btn {
             flex: 1;
@@ -205,7 +193,6 @@
 <body>
 
     <div id="main-content">
-        <!-- ВКЛАДКА ЧАТ -->
         <div id="tab-chat" class="tab-content active">
             <div id="chat-history">
                 <div class="message ai-msg">Привет. Я готов писать код. Что делаем?</div>
@@ -216,7 +203,6 @@
             </div>
         </div>
 
-        <!-- ВКЛАДКА КОД -->
         <div id="tab-code" class="tab-content">
             <div id="code-view">
                 <div id="latest-code">// Тут появится твой последний сгенерированный код...</div>
@@ -224,7 +210,6 @@
             </div>
         </div>
 
-        <!-- ВКЛАДКА НАСТРОЙКИ -->
         <div id="tab-settings" class="tab-content" style="overflow-y: auto;">
             <div class="setting-group">
                 <div class="setting-title">Тема оформления</div>
@@ -234,17 +219,9 @@
                     <button class="theme-btn t-orange" onclick="setTheme('orange')">Оранж</button>
                 </div>
             </div>
-            
-            <div class="setting-group">
-                <div class="setting-title">Мои чаты</div>
-                <div class="chat-list-item">📝 Генерация менюшки Lua</div>
-                <div class="chat-list-item">📝 Фикс ошибки Python</div>
-                <div class="chat-list-item">📝 Верстка сайта</div>
-            </div>
         </div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ -->
     <div id="bottom-nav">
         <button class="nav-btn active" onclick="switchTab('chat')">
             <span class="icon">💬</span> Чат
@@ -294,11 +271,12 @@
             chat.scrollTop = chat.scrollHeight;
 
             try {
-                const response = await fetch("https://gen.pollinations.ai/v1/chat/completions", {
+                // ИСПОЛЬЗУЕМ HACK CLUB (РАБОТАЕТ БЕЗ КЛЮЧЕЙ)
+                const response = await fetch("https://ai.hackclub.com/proxy/v1/chat/completions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        model: "mistral",
+                        model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
                         messages: [
                             { role: "system", content: SYSTEM_PROMPT },
                             { role: "user", content: text }
@@ -316,7 +294,7 @@
                 extractAndSaveCode(reply);
 
             } catch (error) {
-                document.getElementById(loadingId).innerText = "Ошибка сети. Сервер не отвечает.";
+                document.getElementById(loadingId).innerText = "Ошибка сети. Сервер временно недоступен.";
             }
         }
 
