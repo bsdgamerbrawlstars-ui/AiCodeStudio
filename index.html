@@ -195,7 +195,7 @@
     <div id="main-content">
         <div id="tab-chat" class="tab-content active">
             <div id="chat-history">
-                <div class="message ai-msg">Привет. Я готов писать код. Что делаем?</div>
+                <!-- История будет загружаться сюда -->
             </div>
             <div class="input-area">
                 <input type="text" id="prompt-input" placeholder="Опиши задачу..." autocomplete="off">
@@ -219,6 +219,9 @@
                     <button class="theme-btn t-orange" onclick="setTheme('orange')">Оранж</button>
                 </div>
             </div>
+            <div class="setting-group">
+                <button class="copy-btn" style="background: #d9534f;" onclick="clearHistory()">Очистить историю чата</button>
+            </div>
         </div>
     </div>
 
@@ -239,7 +242,29 @@
         tg.ready();
         tg.expand();
 
-        const SYSTEM_PROMPT = `Ты профессиональный программист. Пиши чистый код без лишних пояснений. Если пишешь код, оборачивай его в блоки \`\`\`язык ... \`\`\`.`;
+        const SYSTEM_PROMPT = "Ты профессиональный программист. Пиши чистый код. Если пишешь код, оборачивай его в блоки ```язык ... ```.";
+        
+        // Загрузка темы и истории при старте
+        let chatHistoryData = JSON.parse(localStorage.getItem('chatHistory')) || [];
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        document.body.setAttribute('data-theme', currentTheme);
+
+        function renderChat() {
+            const chat = document.getElementById('chat-history');
+            chat.innerHTML = '';
+            
+            if (chatHistoryData.length === 0) {
+                chat.innerHTML = '<div class="message ai-msg">Привет. Я готов писать код. Что делаем?</div>';
+            } else {
+                chatHistoryData.forEach(msg => {
+                    chat.innerHTML += `<div class="message ${msg.role === 'user' ? 'user-msg' : 'ai-msg'}">${msg.content.replace(/\n/g, '<br>')}</div>`;
+                });
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Отрисовка при запуске
+        renderChat();
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -253,7 +278,16 @@
 
         function setTheme(theme) {
             document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme); // Сохраняем тему
             if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function clearHistory() {
+            if(confirm("Удалить всю историю чата?")) {
+                chatHistoryData = [];
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistoryData));
+                renderChat();
+            }
         }
 
         async function sendMessage() {
@@ -261,25 +295,28 @@
             const text = input.value.trim();
             if (!text) return;
 
-            const chat = document.getElementById('chat-history');
-            chat.innerHTML += `<div class="message user-msg">${text}</div>`;
-            input.value = '';
-            chat.scrollTop = chat.scrollHeight;
+            // Добавляем сообщение юзера в память
+            chatHistoryData.push({ role: "user", content: text });
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistoryData));
+            renderChat();
 
+            input.value = '';
+
+            const chat = document.getElementById('chat-history');
             const loadingId = 'load-' + Date.now();
             chat.innerHTML += `<div class="message ai-msg" id="${loadingId}">Печатает...</div>`;
             chat.scrollTop = chat.scrollHeight;
 
             try {
-                // ИСПОЛЬЗУЕМ HACK CLUB (РАБОТАЕТ БЕЗ КЛЮЧЕЙ)
-                const response = await fetch("https://ai.hackclub.com/proxy/v1/chat/completions", {
+                // ИСПОЛЬЗУЕМ POLLINATIONS (ОН НЕ БЛОКИРУЕТ ЗАПРОСЫ С САЙТОВ)
+                const response = await fetch("https://text.pollinations.ai/openai", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+                        model: "openai",
                         messages: [
                             { role: "system", content: SYSTEM_PROMPT },
-                            { role: "user", content: text }
+                            ...chatHistoryData.slice(-5) // Отправляем последние 5 сообщений для контекста
                         ]
                     })
                 });
@@ -287,9 +324,11 @@
                 const data = await response.json();
                 let reply = data.choices[0].message.content;
 
-                const loadingMsg = document.getElementById(loadingId);
-                loadingMsg.innerHTML = reply.replace(/\n/g, '<br>');
-                chat.scrollTop = chat.scrollHeight;
+                // Убираем заглушку и сохраняем ответ ИИ
+                document.getElementById(loadingId).remove();
+                chatHistoryData.push({ role: "assistant", content: reply });
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistoryData));
+                renderChat();
 
                 extractAndSaveCode(reply);
 
